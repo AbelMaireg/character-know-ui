@@ -1,20 +1,21 @@
 <template>
-  <div>
-    <canvas ref="canvas" :width="width" :height="height" />
+  <div class="canvas-wrapper">
+    <canvas ref="canvas" :width="size" :height="size" />
+    
     <div class="buttons">
-      <button @click="clearCanvas">Clear</button>
-      <button @click="uploadImage" :disabled="loading">
-        {{ loading ? 'Uploading...' : 'Upload & Predict' }}
+      <button class="btn clear" @click="clearCanvas">🧹 Clear</button>
+      <button class="btn upload" @click="uploadImage" :disabled="loading">
+        {{ loading ? 'Uploading...' : '📤 Upload & Predict' }}
       </button>
     </div>
 
     <div v-if="previewUrl" class="preview">
-      <h3>Preview:</h3>
+      <h3>Preview</h3>
       <img :src="previewUrl" alt="Canvas preview" />
     </div>
 
     <div v-if="result" class="result">
-      <h3>Prediction:</h3>
+      <h3>Prediction</h3>
       <p>Digit: <strong>{{ result.predicted_digit }}</strong></p>
       <p>Confidence: <strong>{{ formatConfidence(result.confidence) }}</strong></p>
     </div>
@@ -22,29 +23,63 @@
 </template>
 
 <style scoped>
-canvas {
-  border: 1px solid #ccc;
-  cursor: crosshair;
-  display: block;
-  margin-bottom: 1rem;
-  background-color: black;
+.canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
+
+canvas {
+  border: 2px solid #888;
+  background-color: black;
+  cursor: crosshair;
+  border-radius: 8px;
+}
+
 .buttons {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1rem;
 }
+
+.btn {
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border: none;
+}
+
+.btn.clear {
+  background-color: #eee;
+  color: #333;
+}
+.btn.clear:hover {
+  background-color: #ddd;
+}
+
+.btn.upload {
+  background-color: #1e88e5;
+  color: white;
+}
+.btn.upload:hover {
+  background-color: #1565c0;
+}
+
 .preview img {
+  max-width: 150px;
   border: 1px solid #aaa;
-  max-width: 15%;
-  height: auto;
+  border-radius: 4px;
 }
+
 .result {
-  margin-top: 1rem;
-  padding: 0.75rem;
+  background-color: #f3f3f3;
+  padding: 0.75rem 1rem;
   border: 1px solid #ddd;
-  background: #f7f7f7;
-  max-width: 400px;
+  border-radius: 8px;
+  text-align: center;
 }
 </style>
 
@@ -60,8 +95,7 @@ let ctx = null
 let drawing = false
 
 const props = defineProps({
-  width: { type: Number, default: 600 },
-  height: { type: Number, default: 400 },
+  size: { type: Number, default: 300 }, // Square canvas
   endpoint: { type: String, required: true }
 })
 
@@ -69,9 +103,8 @@ onMounted(() => {
   const el = canvas.value
   ctx = el.getContext('2d')
 
-  // Set canvas background to black
   ctx.fillStyle = 'black'
-  ctx.fillRect(0, 0, props.width, props.height)
+  ctx.fillRect(0, 0, props.size, props.size)
 
   el.addEventListener('mousedown', startDraw)
   el.addEventListener('mouseup', stopDraw)
@@ -105,12 +138,12 @@ function draw(e) {
 
 function clearCanvas() {
   ctx.fillStyle = 'black'
-  ctx.fillRect(0, 0, props.width, props.height)
+  ctx.fillRect(0, 0, props.size, props.size)
   previewUrl.value = null
   result.value = null
 }
 
-async function uploadImage() {
+function uploadImage() {
   canvas.value.toBlob(async (blob) => {
     if (!blob) return
     previewUrl.value = URL.createObjectURL(blob)
@@ -125,7 +158,6 @@ async function uploadImage() {
         method: 'POST',
         body: formData,
       })
-      console.log(res)
 
       const contentType = res.headers.get('content-type') || ''
       if (!res.ok || !contentType.includes('application/json')) {
@@ -134,15 +166,7 @@ async function uploadImage() {
       }
 
       const data = await res.json()
-
-      if (
-        typeof data.predicted_digit !== 'undefined' &&
-        typeof data.confidence !== 'undefined'
-      ) {
-        result.value = data
-      } else {
-        throw new Error('Missing expected keys in response')
-      }
+      result.value = data
     } catch (err) {
       console.error('Upload failed:', err)
       result.value = {
