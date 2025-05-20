@@ -1,6 +1,5 @@
 <template>
   <div>
-    <NuxtRouteAnnouncer />
-    <NuxtWelcome />
+    <Canvas endpoint="http://localhost:5000/predict" />
   </div>
 </template>
