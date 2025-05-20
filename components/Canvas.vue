@@ -83,51 +83,56 @@ canvas {
 }
 </style>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-const canvas = ref(null)
-const previewUrl = ref(null)
-const result = ref(null)
+const canvas = ref<HTMLCanvasElement | null>(null)
+const previewUrl = ref<string | null>(null)
+const result = ref<{ predicted_digit: number | string; confidence: number; error?: boolean } | null>(null)
 const loading = ref(false)
 
-let ctx = null
-let drawing = false
+const size = 300 // canvas size: 300x300
 
-const props = defineProps({
-  size: { type: Number, default: 300 }, // Square canvas
-  endpoint: { type: String, required: true }
-})
+const props = defineProps<{
+  endpoint: string
+}>()
+
+let ctx: CanvasRenderingContext2D | null = null
+let drawing = false
 
 onMounted(() => {
   const el = canvas.value
+  if (!el) return
+
   ctx = el.getContext('2d')
+  if (!ctx) return
 
   ctx.fillStyle = 'black'
-  ctx.fillRect(0, 0, props.size, props.size)
+  ctx.fillRect(0, 0, size, size)
 
   el.addEventListener('mousedown', startDraw)
   el.addEventListener('mouseup', stopDraw)
   el.addEventListener('mousemove', draw)
 })
 
-function startDraw(e) {
+function startDraw(e: MouseEvent) {
   drawing = true
   draw(e)
 }
 
 function stopDraw() {
   drawing = false
-  ctx.beginPath()
+  ctx?.beginPath()
 }
 
-function draw(e) {
-  if (!drawing) return
+function draw(e: MouseEvent) {
+  if (!drawing || !ctx || !canvas.value) return
+
   const rect = canvas.value.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
 
-  ctx.lineWidth = 12
+  ctx.lineWidth = 16
   ctx.lineCap = 'round'
   ctx.strokeStyle = 'white'
   ctx.lineTo(x, y)
@@ -137,15 +142,20 @@ function draw(e) {
 }
 
 function clearCanvas() {
+  if (!ctx) return
   ctx.fillStyle = 'black'
-  ctx.fillRect(0, 0, props.size, props.size)
+  ctx.fillRect(0, 0, size, size)
   previewUrl.value = null
   result.value = null
 }
 
 function uploadImage() {
-  canvas.value.toBlob(async (blob) => {
+  const el = canvas.value
+  if (!el) return
+
+  el.toBlob(async (blob) => {
     if (!blob) return
+
     previewUrl.value = URL.createObjectURL(blob)
     loading.value = true
     result.value = null
@@ -166,13 +176,24 @@ function uploadImage() {
       }
 
       const data = await res.json()
-      result.value = data
+
+      if (
+        typeof data.predicted_digit !== 'undefined' &&
+        typeof data.confidence !== 'undefined'
+      ) {
+        result.value = {
+          predicted_digit: data.predicted_digit,
+          confidence: data.confidence,
+        }
+      } else {
+        throw new Error('Missing expected keys in response')
+      }
     } catch (err) {
       console.error('Upload failed:', err)
       result.value = {
         predicted_digit: '?',
         confidence: 0,
-        error: true
+        error: true,
       }
     } finally {
       loading.value = false
@@ -180,7 +201,7 @@ function uploadImage() {
   }, 'image/png')
 }
 
-function formatConfidence(confidence) {
+function formatConfidence(confidence: number): string {
   return `${(confidence * 100).toFixed(2)}%`
 }
 </script>
