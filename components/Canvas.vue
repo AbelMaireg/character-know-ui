@@ -16,7 +16,7 @@
 
     <div v-if="result" class="result">
       <h3>Prediction</h3>
-      <p>Digit: <strong>{{ result.predicted_digit }}</strong></p>
+      <p>Character: <strong>{{ result.predicted_character }}</strong></p>
       <p>Confidence: <strong>{{ formatConfidence(result.confidence) }}</strong></p>
     </div>
   </div>
@@ -88,7 +88,7 @@ import { ref, onMounted } from 'vue'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const previewUrl = ref<string | null>(null)
-const result = ref<{ predicted_digit: number | string; confidence: number; error?: boolean } | null>(null)
+const result = ref<{ predicted_character: number | string; confidence: number; error?: boolean } | null>(null)
 const loading = ref(false)
 
 const size = 300 // canvas size: 300x300
@@ -177,12 +177,14 @@ function uploadImage() {
 
       const data = await res.json()
 
+      console.log('Response data:', data)
+
       if (
-        typeof data.predicted_digit !== 'undefined' &&
+        typeof data.predicted_character !== 'undefined' &&
         typeof data.confidence !== 'undefined'
       ) {
         result.value = {
-          predicted_digit: data.predicted_digit,
+          predicted_character: data.predicted_character,
           confidence: data.confidence,
         }
       } else {
@@ -191,7 +193,7 @@ function uploadImage() {
     } catch (err) {
       console.error('Upload failed:', err)
       result.value = {
-        predicted_digit: '?',
+        predicted_character: '?',
         confidence: 0,
         error: true,
       }
